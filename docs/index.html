@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Heirloom. One question a week, their voice kept.</title>
+<meta name="description" content="An Android app that interviews your grandparents one question a week and keeps the answers in their own voice. Three hundred hand-written prompts, elder mode, and no cloud at all.">
+<meta property="og:title" content="Heirloom. One question a week, their voice kept.">
+<meta property="og:description" content="Everybody means to record their grandparents. Almost nobody does. This makes it small enough to actually do.">
+<link rel="icon" href="shots/icon.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root {
+    --paper: #F4EFE4; --card: #FBF8F0; --ink: #221F1A; --soft: #5C5648; --faint: #8C8676;
+    --hair: #D8CFBC; --accent: #1F4436; --accent-ink: #FBF8F0;
+    --serif: "Fraunces", Iowan Old Style, Palatino, Georgia, serif;
+    --sans: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #17150F; --card: #1E1B15; --ink: #EDE7D8; --soft: #A29A88; --faint: #7A7364;
+            --hair: #33302A; --accent: #8FC0AC; --accent-ink: #17150F; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans);
+         font-size: 18px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px; }
+  a { color: var(--accent); }
+  h1, h2, h3 { font-family: var(--serif); font-weight: 600; letter-spacing: -0.015em; }
+
+  .cta { display: inline-block; background: var(--accent); color: var(--accent-ink); text-decoration: none;
+         padding: 14px 26px; border-radius: 4px; font-size: 16px; border: 1px solid var(--accent);
+         transition: transform .15s ease; }
+  .cta:active { transform: translateY(1px); }
+
+  nav { display: flex; align-items: center; justify-content: space-between; height: 76px; }
+  .mark { display: flex; align-items: center; gap: 12px; font-family: var(--serif); font-size: 19px; }
+  .mark i { display: block; width: 22px; height: 22px; border-radius: 3px; background: var(--accent); }
+  nav a { color: var(--soft); text-decoration: none; font-size: 15px; margin-left: 22px; }
+  nav a:hover { color: var(--ink); }
+
+  /* hero: split */
+  .hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 56px; align-items: center; padding: 30px 0 96px; }
+  .hero h1 { font-size: clamp(38px, 5vw, 60px); line-height: 1.08; margin: 0 0 20px; }
+  .hero p { font-size: 20px; color: var(--soft); margin: 0 0 30px; max-width: 32ch; }
+  .shot { width: 100%; height: auto; border-radius: 4px; border: 1px solid var(--hair); display: block; }
+  .hero .shot { max-width: 330px; margin-left: auto; }
+
+  /* the question: a full-width quiet band */
+  .band { border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); padding: 96px 0; text-align: center; }
+  .band .q { font-family: var(--serif); font-size: clamp(26px, 3.4vw, 38px); line-height: 1.35; margin: 0 auto 10px; max-width: 22ch; }
+  .band .qs { color: var(--faint); font-size: 15px; letter-spacing: .1em; text-transform: uppercase; margin: 0 0 34px; }
+  .band .after { color: var(--soft); max-width: 46ch; margin: 0 auto; }
+
+  /* packs: plain rows, no cards */
+  .packs { padding: 96px 0 40px; }
+  .packs h2 { font-size: clamp(28px, 3.2vw, 36px); margin: 0 0 14px; }
+  .packs .sub { color: var(--soft); max-width: 54ch; margin: 0 0 44px; }
+  .row { display: grid; grid-template-columns: 15rem 1fr; gap: 28px; padding: 22px 0; border-top: 1px solid var(--hair); }
+  .row:last-child { border-bottom: 1px solid var(--hair); }
+  .row h3 { margin: 0; font-size: 18px; }
+  .row p { margin: 0; color: var(--soft); }
+
+  /* gallery */
+  .gallery { padding: 90px 0 20px; }
+  .gallery h2 { font-size: clamp(28px, 3.2vw, 36px); margin: 0 0 44px; }
+  .strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .strip figure { margin: 0; }
+  .strip figcaption { color: var(--soft); font-size: 15px; margin-top: 14px; }
+
+  /* keeping */
+  .keep { padding: 90px 0; }
+  .keep h2 { font-size: clamp(28px, 3.2vw, 36px); margin: 0 0 20px; max-width: 20ch; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin-top: 30px; }
+  .cols > div { padding: 0 40px; }
+  .cols > div:first-child { padding-left: 0; border-right: 1px solid var(--hair); }
+  .cols > div:last-child { padding-right: 0; }
+  .cols h3 { margin: 0 0 10px; font-size: 19px; }
+  .cols p { margin: 0; color: var(--soft); }
+
+  .close { text-align: center; padding: 20px 0 110px; }
+  .close p { font-family: var(--serif); font-size: 24px; max-width: 24ch; margin: 0 auto 28px; }
+
+  footer { border-top: 1px solid var(--hair); padding: 34px 0 60px; color: var(--faint); font-size: 15px; }
+  footer .r { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+  footer a { color: var(--soft); text-decoration: none; margin-right: 18px; }
+
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; transition: none } }
+
+  @media (max-width: 860px) {
+    .hero { grid-template-columns: 1fr; gap: 36px; }
+    .hero .shot { max-width: 300px; margin: 0 auto; }
+    .strip { grid-template-columns: 1fr; max-width: 330px; margin: 0 auto; gap: 40px; }
+    .cols { grid-template-columns: 1fr; }
+    .cols > div { padding: 0 0 24px; }
+    .cols > div:first-child { border-right: 0; border-bottom: 1px solid var(--hair); margin-bottom: 24px; }
+    .row { grid-template-columns: 1fr; gap: 6px; }
+    nav a { margin-left: 14px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <span class="mark"><i></i> Heirloom</span>
+    <span>
+      <a href="#questions">The questions</a>
+      <a href="privacy-policy.html">Privacy</a>
+      <a href="play/">Try it</a>
+    </span>
+  </nav>
+
+  <header class="hero">
+    <div>
+      <h1>One question a week. Their voice, kept.</h1>
+      <p>Everybody means to record their grandparents. Almost nobody does, because the task is enormous.
+        This makes it small enough to actually do.</p>
+      <a class="cta" href="https://play.google.com/store/apps/details?id=com.mohdshayan.heirloom">Get it on Google Play</a>
+    </div>
+    <img class="shot reveal" src="shots/01-elder.png" width="1080" height="1920"
+         alt="Elder mode: one question in large type and a single record button.">
+  </header>
+</div>
+
+<section class="band">
+  <div class="wrap">
+    <p class="qs">This week</p>
+    <p class="q">What did your house smell like when you came home from school?</p>
+    <p class="after">Hand the phone over. One screen, one button, no menus and no way to lose anything.
+      They talk for as long as they want, up to half an hour, and the answer is kept in the voice that
+      said it.</p>
+  </div>
+</section>
+
+<section class="packs wrap" id="questions">
+  <h2>Three hundred questions, written by hand</h2>
+  <p class="sub">Not scraped from a list. Seven packs, so the questions fit the life rather than a
+    template, and the engine leans toward subjects the archive has already touched.</p>
+
+  <div class="row"><h3>The long life</h3><p>Questions that work for anyone, anywhere. Always on.</p></div>
+  <div class="row"><h3>Before the wireless</h3><p>Rationing, coal light, telegrams. For elders born before about 1945.</p></div>
+  <div class="row"><h3>The first television</h3><p>Records, factories, the first family car. Roughly 1945 to 1968.</p></div>
+  <div class="row"><h3>India and South Asia</h3><p>Monsoon roofs, steel trunks, the corner shop that kept a book of credit.</p></div>
+  <div class="row"><h3>Britain and Ireland</h3><p>Washing day, the coalman, the front room kept for visitors.</p></div>
+  <div class="row"><h3>United States and Canada</h3><p>Porches, county fairs, the drive that took a whole day.</p></div>
+  <div class="row"><h3>Leaving and arriving</h3><p>For anyone who built a life in a country they were not born in.</p></div>
+</section>
+
+<section class="gallery wrap">
+  <h2>What it looks like</h2>
+  <div class="strip">
+    <figure class="reveal">
+      <img class="shot" src="shots/02-recording.png" width="1080" height="1920" alt="A recording in progress with a waveform and a running time.">
+      <figcaption>Recording. Pause, resume, or start again if the first go was a false start.</figcaption>
+    </figure>
+    <figure class="reveal">
+      <img class="shot" src="shots/03-archive.png" width="1080" height="1920" alt="The archive: answers listed with their questions and dates.">
+      <figcaption>The archive. Every answer kept with the question that produced it.</figcaption>
+    </figure>
+    <figure class="reveal">
+      <img class="shot" src="shots/06-keepsake.png" width="1080" height="1920" alt="The keepsake screen showing the archive as an object and an export button.">
+      <figcaption>Keepsake. What the collection adds up to, and how to get it off this phone.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="keep wrap">
+  <h2>On this phone, and nowhere else</h2>
+  <div class="cols">
+    <div>
+      <h3>No cloud to trust</h3>
+      <p>Heirloom does not request the internet permission, so it cannot upload your family's voices even
+        if it wanted to. No account, no analytics, and no transcription service listening in. You can
+        check that on the Play listing.</p>
+    </div>
+    <div>
+      <h3>So keep a copy</h3>
+      <p>That also means the app is not a backup. Export the whole archive as audio files with a readable
+        manifest of who said what and when, and put it somewhere safe. It is one tap, and the app keeps
+        reminding you.</p>
+    </div>
+  </div>
+</section>
+
+<section class="close wrap">
+  <p>It does not transcribe, and it does not tidy the pauses. The pauses are the recording.</p>
+  <a class="cta" href="https://play.google.com/store/apps/details?id=com.mohdshayan.heirloom">Get it on Google Play</a>
+</section>
+
+<footer>
+  <div class="wrap r">
+    <span>
+      <a href="privacy-policy.html">Privacy policy</a>
+      <a href="play/">Try it in the browser</a>
+      <a href="https://github.com/shayanmohd/heirloom">Source</a>
+    </span>
+    <span>SocialSure Private Limited</span>
+  </div>
+</footer>
+
+<script>
+  const io = new IntersectionObserver((es) => {
+    for (const e of es) if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target) }
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+</body>
+</html>

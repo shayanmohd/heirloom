@@ -1,0 +1,22 @@
+{
+  "app": "Heirloom",
+  "org": "SocialSure Private Limited",
+  "site": "https://shayanmohd.github.io/heirloom/",
+  "email": "shayanm2002@gmail.com",
+  "bg": "#F4EFE4", "fg": "#221F1A", "muted": "#5C5648", "hair": "#D8CFBC", "accent": "#1F4436",
+  "bgDark": "#17150F", "fgDark": "#EDE7D8", "mutedDark": "#A29A88", "hairDark": "#33302A", "accentDark": "#8FC0AC",
+  "fontFamily": "'Source Serif 4', Iowan Old Style, Georgia, serif",
+  "fontCss": "fonts/fonts.css",
+  "permissions": [
+    ["RECORD_AUDIO", "to record the answer while your elder is speaking. The recording is written to this device and nowhere else"],
+    ["POST_NOTIFICATIONS", "to deliver the weekly reminder that a question is waiting"],
+    ["VIBRATE", "a short tap when a recording starts and stops"]
+  ],
+  "network": false,
+  "collects": [],
+  "storage": "Recordings and the questions they answer are stored in this app's private storage on this device, in the browser database the app runs on. They are never uploaded. If you uninstall the app they are gone, which is why the Keepsake screen exists: export the whole archive as audio files with a readable manifest whenever you like, and keep that copy somewhere safe.",
+  "extra": [
+    ["No transcription", "Heirloom does not transcribe, summarise or analyse what is said. No service reads your recordings, because no recording ever leaves the phone. The pauses stay in."],
+    ["Consent", "Record someone only with their knowledge and agreement. The app is built for a conversation between two people who both want it to happen, and it asks who is telling before it asks anything else."]
+  ]
+}

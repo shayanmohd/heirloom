@@ -1,0 +1,92 @@
+{
+  "name": "Heirloom",
+  "tagline": "One question a week. Their voice, kept.",
+  "bg": "#F4EFE4",
+  "fg": "#221F1A",
+  "accent": "#1F4436",
+  "iconbg": "#F4EFE4",
+  "featurebg": "#F4EFE4",
+  "font": "/Users/sherry/Documents/DEVPROJECTS/heirloom/store/display.ttf",
+  "mark": [
+    {
+      "t": "rect",
+      "x": 33.5,
+      "y": 32,
+      "w": 5,
+      "h": 11,
+      "r": 2.5,
+      "c": "accent"
+    },
+    {
+      "t": "rect",
+      "x": 42.5,
+      "y": 26,
+      "w": 5,
+      "h": 23,
+      "r": 2.5,
+      "c": "accent"
+    },
+    {
+      "t": "rect",
+      "x": 51.5,
+      "y": 21,
+      "w": 5,
+      "h": 33,
+      "r": 2.5,
+      "c": "accent"
+    },
+    {
+      "t": "rect",
+      "x": 60.5,
+      "y": 26,
+      "w": 5,
+      "h": 23,
+      "r": 2.5,
+      "c": "accent"
+    },
+    {
+      "t": "rect",
+      "x": 69.5,
+      "y": 32,
+      "w": 5,
+      "h": 11,
+      "r": 2.5,
+      "c": "accent"
+    },
+    {
+      "t": "rect",
+      "x": 27,
+      "y": 61,
+      "w": 54,
+      "h": 27,
+      "r": 4,
+      "w_stroke": 5,
+      "c": "accent"
+    },
+    {
+      "t": "line",
+      "pts": [
+        [
+          27,
+          70
+        ],
+        [
+          81,
+          70
+        ]
+      ],
+      "w": 5,
+      "c": "accent",
+      "cap": "butt"
+    },
+    {
+      "t": "rect",
+      "x": 50.5,
+      "y": 70,
+      "w": 7,
+      "h": 9,
+      "r": 1.5,
+      "c": "accent"
+    }
+  ]
+}
