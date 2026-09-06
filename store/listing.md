@@ -35,10 +35,16 @@ lost, no way to delete anything by accident. Recordings run up to thirty minutes
 can be re-recorded if the first go was a false start.
 
 THE ARCHIVE
-Every answer is kept with its question, its date and who told it. Play them back, mark the ones that made
-you cry, and see what the collection adds up to as it grows. The Keepsake screen shows the archive as an
-object and gives you the way to get it off this phone: export every recording as an audio file with a
-readable manifest of who said what and when, through the share sheet, to a drive or a sibling.
+Every answer is kept with its question, its date and who told it. Play them back, mark the moments you
+want to find again, tag the people and places that come up, and watch threads form: tap a name and hear
+every story it appears in, across voices. The Keepsake screen shows the archive as an object, one ring
+for every story, and gives you the way to get it off this phone: export every recording as an audio file
+with a readable manifest of who said what and when, through the share sheet, to a drive or a sibling.
+
+AND BACK AGAIN
+A Heirloom export can be restored. New phone, or a copy a sibling sent you: bring the file back in and
+the stories rejoin the archive with their tags, moments, titles and dates. Stories already there are left
+exactly as they are.
 
 ON THIS PHONE, AND NOWHERE ELSE
 Heirloom does not have the internet permission. It cannot upload your family's voices, because Android
@@ -69,5 +75,6 @@ Privacy policy: https://shayanmohd.github.io/heirloom/privacy-policy.html
 - Target audience: 13 and over.
 - Content rating: no violence, sexuality, profanity, controlled substances, gambling, user-to-user
   communication or location sharing.
-- AI-generated assets: none. The icon and feature graphic are drawn procedurally from store/brand.json;
-  the screenshots are captures of the running app; all 300 prompts were written by hand.
+- AI-generated assets: none. The icon and feature graphic are drawn in hand-written SVG and HTML
+  (store/icon.svg, store/feature.html); the screenshots are captures of the running app; all 300 prompts
+  were written by hand.

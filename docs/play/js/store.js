@@ -81,6 +81,17 @@ const Store = (() => {
     d.setDate(d.getDate() + delta);
     return d.getTime();
   }
+  /** The ritual slot the next question belongs to, given one was answered at `at`.
+      A story kept on the ritual morning must not deal another question the same
+      afternoon, so a slot landing on the day of the answer is passed over. */
+  function nextDue(t, at) {
+    at = at == null ? t.answeredAt : at;
+    if (!at) return nextRitual(t);
+    let d = nextRitual(t, at);
+    const a = new Date(at), n = new Date(d);
+    if (a.getFullYear() === n.getFullYear() && a.getMonth() === n.getMonth() && a.getDate() === n.getDate()) d = nextRitual(t, d);
+    return d;
+  }
   function weekIndex(t, now) {
     return Math.floor(((now || Date.now()) - (t.startedAt || Date.now())) / WEEK);
   }
@@ -89,12 +100,17 @@ const Store = (() => {
   const tellers = () => db.tellers;
   const teller = id => db.tellers.find(t => t.id === id) || null;
 
+  /** A birth year the app will believe: four digits, not in the future, not before 1880. */
+  function validYear(y) {
+    y = parseInt(y, 10);
+    return (y >= 1880 && y <= new Date().getFullYear()) ? y : null;
+  }
   function addTeller(o) {
     const t = {
-      id: uid('t'), name: o.name.trim(), relation: (o.relation || '').trim(),
-      birthYear: o.birthYear || null, place: (o.place || '').trim(),
+      id: uid('t'), name: o.name.trim().slice(0, 40), relation: (o.relation || '').trim().slice(0, 30),
+      birthYear: validYear(o.birthYear), place: (o.place || '').trim().slice(0, 40),
       packs: o.packs || [], consent: null,
-      ritual: { day: o.day == null ? 0 : o.day, time: o.time || '15:00' },
+      ritual: { day: o.day == null ? 0 : o.day, time: /^\d\d:\d\d$/.test(o.time || '') ? o.time : '15:00' },
       startedAt: Date.now(), current: null, used: [], skipped: []
     };
     db.tellers.push(t); save();
@@ -153,7 +169,7 @@ const Store = (() => {
     const t = teller(id); if (!t) return null;
     const wk = weekIndex(t);
     if (t.current && t.current.week === wk) return t.current;
-    const q = db.queue.find(x => x.tellerId === id);
+    const q = db.queue.find(x => x.tellerId === id && !(x.deferUntil > Date.now()));
     if (q) {
       t.current = { week: wk, promptId: null, text: q.text, label: '',
                     fromId: q.fromId, queueId: q.id };
@@ -172,16 +188,22 @@ const Store = (() => {
     t.current = { week: weekIndex(t), promptId: p.id, text: p.text, label: p.label, fromId: null };
     save(); return t.current;
   }
-  function skipWeek(id) {
+  function skipWeek(id, rest) {
     const t = teller(id); if (!t) return;
     const c = current(id);
     if (c && c.promptId && t.skipped.indexOf(c.promptId) < 0) t.skipped.push(c.promptId);
-    if (c && c.queueId) db.queue = db.queue.filter(q => q.id !== c.queueId);
+    if (c && c.queueId) {
+      const q = db.queue.find(x => x.id === c.queueId);
+      if (q) q.deferUntil = Date.now() + WEEK;
+    }
     t.current = null;
+    /* From the big button screen, "not this week" means exactly that: the week is done, and a
+       different question waits at the next ritual. From the keeper's side it just deals again. */
+    if (rest) { t.answeredAt = Date.now(); t.skippedAt = Date.now(); }
     save();
   }
   function askQuestion(tellerId, text, fromId) {
-    const q = { id: uid('q'), tellerId, text: text.trim(), fromId: fromId || null, at: Date.now() };
+    const q = { id: uid('q'), tellerId, text: text.trim().slice(0, 220), fromId: fromId || null, at: Date.now() };
     db.queue.push(q);
     const t = teller(tellerId);
     if (t && !db.stories.some(s => s.tellerId === tellerId && s.at > Date.now() - 6 * 86400000)) t.current = null;
@@ -240,16 +262,20 @@ const Store = (() => {
       visibility: 'family', sealUntil: null,
       plays: 0, reactions: []
     };
-    db.stories.push(s);
-    if (t) {
-      if (o.promptId && t.used.indexOf(o.promptId) < 0) t.used.push(o.promptId);
-      if (o.queueId) db.queue = db.queue.filter(q => q.id !== o.queueId);
-      t.current = null;
-      t.startedAt = Date.now();
-      t.answeredAt = Date.now();
-    }
-    save();
-    return blob ? putAudio(s.id, blob).then(() => s) : Promise.resolve(s);
+    const keep = () => {
+      db.stories.push(s);
+      if (t) {
+        if (o.promptId && t.used.indexOf(o.promptId) < 0) t.used.push(o.promptId);
+        if (o.queueId) db.queue = db.queue.filter(q => q.id !== o.queueId);
+        t.current = null;
+        t.startedAt = Date.now();
+        t.answeredAt = Date.now();
+        t.skippedAt = null;
+      }
+      save();
+      return s;
+    };
+    return blob ? putAudio(s.id, blob).then(keep) : Promise.resolve(keep());
   }
   function updateStory(id, patch) {
     const s = story(id); if (!s) return null;
@@ -263,6 +289,8 @@ const Store = (() => {
   function played(id) { const s = story(id); if (s) { s.plays++; save(); } }
   function react(id, personId) {
     const s = story(id); if (!s) return;
+    const last = s.reactions[s.reactions.length - 1];
+    if (last && last.personId === personId && Date.now() - last.at < 3000) return;
     s.reactions.push({ personId, at: Date.now() });
     db.settings.reactAs = personId; save();
   }
@@ -274,7 +302,7 @@ const Store = (() => {
   function removeMoment(id, i) { const s = story(id); if (s) { s.moments.splice(i, 1); save(); } }
   function addTag(id, type, label) {
     const s = story(id); if (!s) return;
-    label = label.trim(); if (!label) return;
+    label = label.trim().slice(0, 32); if (!label) return;
     if (s.tags.some(t => t.type === type && t.label.toLowerCase() === label.toLowerCase())) return;
     s.tags.push({ type, label }); save();
   }
@@ -285,6 +313,10 @@ const Store = (() => {
   function sealed(s, now) {
     if (s.visibility !== 'sealed' || !s.sealUntil) return false;
     return new Date(s.sealUntil + 'T00:00:00').getTime() > (now || Date.now());
+  }
+  /** Marked sealed, but the date has come and gone. */
+  function sealOpened(s) {
+    return s.visibility === 'sealed' && !!s.sealUntil && !sealed(s);
   }
 
   /* ------------------------------------------------------- the threads -- */
@@ -312,20 +344,25 @@ const Store = (() => {
   }
 
   /* ------------------------------------------------------- reminders ---- */
-  /** Twelve weeks of ritual reminders, recomputed and re-sent on every app open. */
+  /** Twelve weeks of ritual reminders, recomputed and re-sent on every app open.
+      Everything is generated first and the soonest sixty kept, so a sixth teller
+      is not silently dropped off the end of the plan. */
+  const CAP = 60;
   function schedule() {
     const out = [];
-    let id = 1;
     for (const t of db.tellers) {
       if (!t.consent) continue;
-      let at = nextRitual(t);
-      for (let i = 0; i < 12 && out.length < 60; i++) {
-        out.push({ id: id++, at, title: 'One question for ' + t.name,
-                   body: 'A few minutes of ' + t.name + ' talking is worth more than anything else you will do today.' });
-        at += WEEK;
+      /* The slot they have already answered is not worth a reminder. */
+      let at = Math.max(nextRitual(t), nextDue(t));
+      for (let i = 0; i < 12; i++) {
+        out.push({ at, title: 'A question for ' + t.name,
+                   body: 'Hand ' + t.name + ' the phone when you are both sitting down. One question, a few minutes, kept in their own voice.' });
+        /* Stepping a week is not adding 604800000: a clock that goes back in October would
+           move every reminder after it to two in the afternoon. Ask for the next slot instead. */
+        at = nextRitual(t, at);
       }
     }
-    return out.sort((a, b) => a.at - b.at).slice(0, 60).map((n, i) => ({ ...n, id: i + 1 }));
+    return out.sort((a, b) => a.at - b.at).slice(0, CAP).map((n, i) => ({ id: i + 1, at: n.at, title: n.title, body: n.body }));
   }
 
   /* ------------------------------------------------------- the export --- */
@@ -402,43 +439,58 @@ const Store = (() => {
       exported: new Date().toISOString(),
       note: 'Audio files are named in the stories list below. Nothing here was uploaded anywhere; this file was written on the device that made the recordings.',
       tellers: db.tellers.map(t => ({
-        name: t.name, relation: t.relation, born: t.birthYear, place: t.place,
+        id: t.id, name: t.name, relation: t.relation, born: t.birthYear, place: t.place,
+        packs: t.packs, ritual: t.ritual,
         consentGiven: t.consent ? new Date(t.consent.at).toISOString() : null
       })),
+      people: db.people.map(p => ({ id: p.id, name: p.name, role: p.role })),
       stories: list.map(s => {
         const t = teller(s.tellerId);
         return {
+          id: s.id, tellerId: s.tellerId, promptId: s.promptId, label: s.label,
           file: 'audio/' + slug((t ? t.name : '') + '-' + (s.label || s.question)) + '-' + s.id + '.' + extFor(s.mime),
           teller: t ? t.name : '', question: s.question, title: s.title || s.label || null,
-          recorded: new Date(s.at).toISOString(), seconds: Math.round(s.dur),
+          recorded: new Date(s.at).toISOString(), seconds: Math.round(s.dur), mime: s.mime,
           visibility: s.visibility, sealedUntil: s.sealUntil,
-          tags: s.tags, moments: s.moments, notes: s.notes,
-          askedBy: s.askedBy ? (person(s.askedBy) || {}).name || null : null
+          tags: s.tags, moments: s.moments, notes: s.notes, plays: s.plays,
+          askedBy: s.askedBy ? (person(s.askedBy) || {}).name || null : null,
+          reactions: (s.reactions || []).map(r => ({ by: (person(r.personId) || {}).name || null, at: new Date(r.at).toISOString() }))
         };
       })
     };
   }
 
-  /** Everything, in one zip: a JSON manifest, a plain readme and the audio. */
+  /** Everything, in one zip: a JSON manifest, a plain readme and the audio.
+      The readme is written last, once the audio is gathered, so its count is the number of
+      recordings actually in the folder rather than the number of stories in the record. */
   function exportArchive(list) {
     list = list || stories().slice().reverse();
     const m = manifest(list);
     const enc = new TextEncoder();
-    const files = [{ name: 'manifest.json', data: enc.encode(JSON.stringify(m, null, 2)) }];
-    const readme =
-      'HEIRLOOM ARCHIVE\n\n' +
-      (db.family ? db.family + '\n' : '') +
-      'Exported ' + longDate(Date.now()) + '\n\n' +
-      'This folder holds ' + list.length + ' recording' + (list.length === 1 ? '' : 's') +
-      ' and a manifest that says who told each one, which question it answers, when it\n' +
-      'was recorded and how it was tagged. The audio files play in any media player.\n\n' +
-      'Keep a copy somewhere that is not a phone.\n\n' +
-      m.stories.map((s, i) => (i + 1) + '. ' + s.teller + ': ' + s.question + '\n   ' + s.file).join('\n\n') + '\n';
-    files.push({ name: 'README.txt', data: enc.encode(readme) });
-    return list.reduce((chain, s, i) => chain.then(acc => getAudio(s.id).then(b => {
-      if (!b) return acc;
-      return b.arrayBuffer().then(ab => { acc.push({ name: m.stories[i].file, data: new Uint8Array(ab) }); return acc; });
-    })), Promise.resolve(files)).then(zip);
+    const audio = [];
+    return list.reduce((chain, s, i) => chain.then(() => getAudio(s.id).then(b => {
+      if (!b) return;
+      return b.arrayBuffer().then(ab => { audio.push({ name: m.stories[i].file, data: new Uint8Array(ab), i: i }); });
+    })), Promise.resolve()).then(() => {
+      const have = new Set(audio.map(a => a.i));
+      const n = audio.length;
+      const readme =
+        'HEIRLOOM ARCHIVE\n\n' +
+        (db.family ? db.family + '\n' : '') +
+        'Exported ' + longDate(Date.now()) + '\n\n' +
+        'This folder holds ' + n + ' recording' + (n === 1 ? '' : 's') +
+        ' and a manifest that says who told each one, which question it answers, when it\n' +
+        'was recorded and how it was tagged. The audio files play in any media player.\n\n' +
+        (n < list.length
+          ? 'Some stories in the manifest have no audio file here. Their recordings were no longer on\nthe phone this was exported from; the questions, tags and notes are still kept below.\n\n'
+          : '') +
+        'Keep a copy somewhere that is not a phone.\n\n' +
+        m.stories.map((s, i) => (i + 1) + '. ' + s.teller + ': ' + s.question + '\n   ' +
+          (have.has(i) ? s.file : '(no recording in this export)')).join('\n\n') + '\n';
+      return zip([{ name: 'manifest.json', data: enc.encode(JSON.stringify(m, null, 2)) },
+                  { name: 'README.txt', data: enc.encode(readme) }]
+                 .concat(audio.map(a => ({ name: a.name, data: a.data }))));
+    });
   }
 
   function exportStory(id) {
@@ -450,11 +502,126 @@ const Store = (() => {
     });
   }
 
+  /* ------------------------------------------------------- bringing it back */
+  function mimeFor(name) {
+    const e = (name.split('.').pop() || '').toLowerCase();
+    return { webm: 'audio/webm', ogg: 'audio/ogg', m4a: 'audio/mp4', mp3: 'audio/mpeg', wav: 'audio/wav' }[e] || 'application/octet-stream';
+  }
+  /** Reads a zip's central directory. Stored entries are sliced; deflated ones are inflated. */
+  function unzip(buf) {
+    const b = new Uint8Array(buf), v = new DataView(buf);
+    let eocd = -1;
+    for (let i = b.length - 22; i >= Math.max(0, b.length - 66000); i--) {
+      if (v.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error('notzip');
+    const count = v.getUint16(eocd + 10, true);
+    let off = v.getUint32(eocd + 16, true);
+    const dec = new TextDecoder();
+    const entries = [];
+    for (let i = 0; i < count; i++) {
+      if (v.getUint32(off, true) !== 0x02014b50) throw new Error('notzip');
+      const method = v.getUint16(off + 10, true);
+      const csize = v.getUint32(off + 20, true), usize = v.getUint32(off + 24, true);
+      const nlen = v.getUint16(off + 28, true), xlen = v.getUint16(off + 30, true), clen = v.getUint16(off + 32, true);
+      const lho = v.getUint32(off + 42, true);
+      const name = dec.decode(b.subarray(off + 46, off + 46 + nlen));
+      const lnlen = v.getUint16(lho + 26, true), lxlen = v.getUint16(lho + 28, true);
+      const start = lho + 30 + lnlen + lxlen;
+      entries.push({ name, method, data: b.subarray(start, start + csize), usize });
+      off += 46 + nlen + xlen + clen;
+    }
+    return Promise.all(entries.map(e => {
+      if (e.method === 0) return Promise.resolve({ name: e.name, bytes: e.data });
+      if (e.method === 8 && typeof DecompressionStream === 'function') {
+        return new Response(new Blob([e.data]).stream().pipeThrough(new DecompressionStream('deflate-raw')))
+          .arrayBuffer().then(ab => ({ name: e.name, bytes: new Uint8Array(ab) }));
+      }
+      return Promise.reject(new Error('method'));
+    }));
+  }
+  /**
+   * Brings a Heirloom export back into this phone. Stories already here (by id) are left alone,
+   * tellers and listeners are matched by id or name, the audio goes back into IndexedDB.
+   * Resolves { stories, tellers, people, skipped }.
+   */
+  function importArchive(buf) {
+    return unzip(buf).then(files => {
+      const mf = files.find(f => f.name === 'manifest.json');
+      if (!mf) throw new Error('notheirloom');
+      let m;
+      try { m = JSON.parse(new TextDecoder().decode(mf.bytes)); } catch (e) { throw new Error('notheirloom'); }
+      if (!m || m.archive !== 'Heirloom' || !Array.isArray(m.stories)) throw new Error('notheirloom');
+      const out = { stories: 0, tellers: 0, people: 0, skipped: 0 };
+      if (!db.family && m.family) db.family = String(m.family).slice(0, 46);
+      const byName = (list, name) => list.find(x => x.name.toLowerCase() === String(name || '').toLowerCase());
+      for (const p of m.people || []) {
+        if (!p || !p.name) continue;
+        if (!(p.id && person(p.id)) && !byName(db.people, p.name)) {
+          db.people.push({ id: p.id && !person(p.id) ? p.id : uid('p'), name: String(p.name).slice(0, 32), role: p.role === 'keeper' ? 'keeper' : 'listener' });
+          out.people++;
+        }
+      }
+      const tellerFor = mt => {
+        if (!mt) return null;
+        let t = (mt.id && teller(mt.id)) || byName(db.tellers, mt.name);
+        if (t) return t;
+        t = {
+          id: mt.id && !teller(mt.id) ? mt.id : uid('t'), name: String(mt.name || 'Unknown').slice(0, 40),
+          relation: String(mt.relation || '').slice(0, 30), birthYear: validYear(mt.born), place: String(mt.place || '').slice(0, 40),
+          packs: Array.isArray(mt.packs) ? mt.packs.filter(x => Content.PACKS.some(p => p.id === x)) : [],
+          consent: mt.consentGiven ? { at: Date.parse(mt.consentGiven) || Date.now(), note: '' } : null,
+          ritual: { day: mt.ritual && typeof mt.ritual.day === 'number' ? mt.ritual.day : 0,
+                    time: mt.ritual && /^\d\d:\d\d$/.test(mt.ritual.time || '') ? mt.ritual.time : '15:00' },
+          startedAt: Date.now(), current: null, used: [], skipped: [], answeredAt: null
+        };
+        db.tellers.push(t); out.tellers++;
+        return t;
+      };
+      for (const mt of m.tellers || []) tellerFor(mt);
+      const writes = [];
+      for (const ms of m.stories) {
+        if (!ms || !ms.question) { out.skipped++; continue; }
+        if (ms.id && story(ms.id)) { out.skipped++; continue; }
+        const t = tellerFor((m.tellers || []).find(x => (ms.tellerId && x.id === ms.tellerId) || x.name === ms.teller) || { name: ms.teller });
+        const file = files.find(f => f.name === ms.file);
+        const asked = ms.askedBy ? byName(db.people, ms.askedBy) : null;
+        const s = {
+          id: ms.id && !story(ms.id) ? ms.id : uid('s'), tellerId: t.id,
+          promptId: ms.promptId && Content.byId(ms.promptId) ? ms.promptId : null,
+          question: String(ms.question).slice(0, 300), label: String(ms.label || '').slice(0, 60),
+          title: String(ms.title && ms.title !== ms.label ? ms.title : '').slice(0, 70),
+          askedBy: asked ? asked.id : null,
+          at: Date.parse(ms.recorded) || Date.now(), dur: Math.max(0, +ms.seconds || 0),
+          mime: ms.mime || (file ? mimeFor(file.name) : 'audio/webm'), size: file ? file.bytes.length : 0,
+          tags: Array.isArray(ms.tags) ? ms.tags.filter(x => x && x.label).map(x => ({ type: x.type || 'person', label: String(x.label).slice(0, 32) })) : [],
+          moments: Array.isArray(ms.moments) ? ms.moments.filter(x => x && typeof x.t === 'number').map(x => ({ t: x.t, note: String(x.note || '').slice(0, 80) })) : [],
+          notes: String(ms.notes || '').slice(0, 600),
+          visibility: ['family', 'private', 'sealed'].indexOf(ms.visibility) >= 0 ? ms.visibility : 'family',
+          sealUntil: /^\d{4}-\d\d-\d\d$/.test(ms.sealedUntil || '') ? ms.sealedUntil : null,
+          plays: +ms.plays || 0,
+          reactions: Array.isArray(ms.reactions) ? ms.reactions.map(r => { const p = byName(db.people, r.by); return p ? { personId: p.id, at: Date.parse(r.at) || Date.now() } : null; }).filter(Boolean) : []
+        };
+        if (s.promptId && t.used.indexOf(s.promptId) < 0) t.used.push(s.promptId);
+        db.stories.push(s); out.stories++;
+        if (file) writes.push(putAudio(s.id, new Blob([file.bytes], { type: s.mime })));
+      }
+      save();
+      return Promise.all(writes).then(() => out);
+    });
+  }
+
+  /** Erase means erase: the whole audio store goes, not only the recordings this record
+      still knows the ids of. A write that landed while the record did not would otherwise
+      sit in the database forever with nothing pointing at it. */
   function erase() {
-    const ids = db.stories.map(s => s.id);
     db = JSON.parse(JSON.stringify(DEFAULTS));
     localStorage.removeItem(KEY);
-    return Promise.all(ids.map(dropAudio));
+    return open().then(d => new Promise(res => {
+      const tx = d.transaction('audio', 'readwrite');
+      tx.objectStore('audio').clear();
+      tx.oncomplete = res; tx.onerror = res;
+    })).catch(() => {});
   }
 
   function onboarded(v) {
@@ -470,8 +637,8 @@ const Store = (() => {
     people, person, addPerson, removePerson,
     current, setPrompt, skipWeek, askQuestion, queueFor, dropQuestion, tagWeights,
     stories, story, storiesOf, addStory, updateStory, removeStory, played, react,
-    addMoment, removeMoment, addTag, removeTag, sealed, threads, search,
-    getAudio, schedule, exportArchive, exportStory, extFor, erase,
-    nextRitual, weekIndex, longDate, shortDate, relDate, dur, durWords, ymd, DAYS, MONTHS
+    addMoment, removeMoment, addTag, removeTag, sealed, sealOpened, threads, search,
+    getAudio, schedule, exportArchive, exportStory, importArchive, extFor, erase, validYear,
+    nextRitual, nextDue, weekIndex, longDate, shortDate, relDate, dur, durWords, ymd, DAYS, MONTHS
   };
 })();

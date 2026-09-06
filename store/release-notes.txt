@@ -1,9 +1,5 @@
-First release.
+One question a week, and now the disc that draws it. The voice cuts a ring as you talk, one turn a minute, and the archive shows a ring for every story kept.
 
-One question a week for someone you love, answered out loud and kept in their own voice. Three hundred
-hand-written prompts across seven packs, including India and South Asia, Britain and Ireland, and one for
-anyone who built a life in a country they were not born in.
+An export can be brought back in too: a new phone, or a copy from a sibling, restores every story with its tags and dates.
 
-Elder mode is one screen with one big button. Recordings run up to thirty minutes.
-
-No account, no cloud, no transcription, no internet permission.
+Fixes: the words on the big button read properly, a long question no longer crowds what sits under it, the weekly reminder keeps its hour when the clocks change, and search now finds threads.

@@ -8,7 +8,7 @@ const Recorder = (() => {
 
   let stream = null, rec = null, chunks = [], ac = null, analyser = null, buf = null;
   let startedAt = 0, pausedAt = 0, pausedTotal = 0, state = 'idle', mime = '';
-  let onCap = null, capTimer = 0;
+  let onCap = null, capTimer = 0, stopping = null;
 
   const supported = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
 
@@ -32,10 +32,14 @@ const Recorder = (() => {
   /** Resolves once audio is actually flowing. Rejects with a sentence a person can act on. */
   function start(onCapReached) {
     if (!supported()) return Promise.reject(new Error('This device cannot record audio in this app.'));
+    /* A second tap while the microphone is opening, or while recording, is the same tap. */
+    if (state !== 'idle') return Promise.resolve(false);
+    state = 'starting';
     onCap = onCapReached || null;
     return navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
     }).then(s => {
+      if (state !== 'starting') { s.getTracks().forEach(t => t.stop()); return false; }
       stream = s;
       mime = pickType();
       rec = mime ? new MediaRecorder(s, { mimeType: mime, audioBitsPerSecond: 64000 })
@@ -90,11 +94,14 @@ const Recorder = (() => {
     if (capTimer) { clearInterval(capTimer); capTimer = 0; }
     if (stream) stream.getTracks().forEach(t => t.stop());
     if (ac && ac.close) { try { ac.close(); } catch (e) {} }
-    stream = null; rec = null; ac = null; analyser = null; state = 'idle';
+    stream = null; rec = null; ac = null; analyser = null; state = 'idle'; stopping = null;
   }
 
   function stop() {
-    return new Promise(res => {
+    /* Done tapped twice: both taps wait on the same stop, and the blob is kept once. */
+    if (stopping) return stopping;
+    if (state === 'starting') { state = 'idle'; return Promise.resolve(null); }
+    return (stopping = new Promise(res => {
       if (!rec || state === 'idle') { res(null); return; }
       const secs = elapsed();
       const type = mime;
@@ -104,10 +111,11 @@ const Recorder = (() => {
         res({ blob, mime: type, dur: secs });
       };
       try { rec.stop(); } catch (e) { cleanup(); res(null); }
-    });
+    }));
   }
 
   function cancel() {
+    if (state === 'starting') { state = 'idle'; return; }
     if (rec && state !== 'idle') { rec.onstop = null; try { rec.stop(); } catch (e) {} }
     chunks = []; cleanup(); startedAt = 0;
   }

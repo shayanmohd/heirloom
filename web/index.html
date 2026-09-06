@@ -15,8 +15,10 @@
 
   <!-- ------------------------------------------------------ first run -->
   <section class="screen" id="onboard" hidden>
+    <div class="ob-plate" id="obPlate" aria-hidden="true"></div>
     <div class="ob-scroll">
       <div class="ob-step" data-step="0">
+        <div class="ob-mark" id="obMark" aria-hidden="true"></div>
         <p class="ob-eyebrow">Heirloom</p>
         <h1 class="ob-line">Everybody means to record them. Almost nobody does.</h1>
         <p class="ob-sub">The formal interview never gets scheduled. The voice notes go unlabelled. Then it is too late, and the sentence is always the same: I wish I had recorded her.</p>
@@ -24,12 +26,12 @@
       <div class="ob-step" data-step="1" hidden>
         <p class="ob-eyebrow">The method</p>
         <h1 class="ob-line">One question a week. That is the whole thing.</h1>
-        <p class="ob-sub">Record your life story is paralysing. Tell me about your first job is answerable in six minutes. Heirloom hands over one question at a time and keeps every answer in their own voice.</p>
+        <p class="ob-sub">Record your life story is paralysing. Tell me about your first job is answerable in six minutes. Heirloom hands over one question at a time and keeps every answer in their own voice. Every story adds a ring.</p>
       </div>
       <div class="ob-step" data-step="2" hidden>
         <p class="ob-eyebrow">Where it lives</p>
         <h1 class="ob-line">On this phone, and nowhere else.</h1>
-        <p class="ob-sub">There is no account and no cloud. Heirloom cannot open a network connection at all. Recordings stay in this app until you export them, and the export is a normal folder of audio files you can copy anywhere.</p>
+        <p class="ob-sub">There is no account and no cloud. Heirloom cannot open a network connection at all. Recordings stay in this app until you export them, and the export is a normal folder of audio files you can copy anywhere, or bring back into Heirloom on another phone.</p>
       </div>
 
       <div class="ob-step" data-step="3" hidden>
@@ -41,7 +43,7 @@
           <input id="obRel" type="text" placeholder="Papa" autocomplete="off" maxlength="30"></label>
         <div class="fld-row">
           <label class="fld"><span>Year they were born</span>
-            <input id="obYear" type="number" inputmode="numeric" placeholder="1947" min="1900" max="2015"></label>
+            <input id="obYear" type="number" inputmode="numeric" placeholder="1947" min="1880" max="2030"></label>
           <label class="fld"><span>Where they grew up</span>
             <input id="obPlace" type="text" placeholder="Cardiff" autocomplete="off" maxlength="40"></label>
         </div>
@@ -65,16 +67,19 @@
   <!-- -------------------------------------------------------- archive -->
   <section class="screen view" id="v-archive" hidden>
     <div class="scroller">
-      <header class="head">
-        <h1>Archive</h1>
-        <p class="head-sub" id="archSub"></p>
+      <header class="head head-mark">
+        <div class="head-text">
+          <h1>Archive</h1>
+          <p class="head-sub" id="archSub"></p>
+        </div>
+        <div class="head-art" id="archMark" aria-hidden="true"></div>
       </header>
       <div class="seg" id="archSeg">
         <button class="seg-b on" data-mode="timeline">Timeline</button>
         <button class="seg-b" data-mode="threads">Threads</button>
       </div>
       <div class="searchwrap">
-        <input id="archSearch" type="search" placeholder="Search questions, tags and marked moments" autocomplete="off">
+        <input id="archSearch" type="search" placeholder="Search questions, tags, moments" autocomplete="off" aria-label="Search the archive">
       </div>
       <div class="chiprow" id="archChips"></div>
       <div id="archList"></div>
@@ -117,17 +122,17 @@
   <!-- ---------------------------------------------------- elder mode -->
   <section class="screen" id="elder" hidden>
     <div class="elder-top">
-      <button class="elder-exit" id="elderExit" aria-label="Leave elder mode"><span></span></button>
+      <button class="elder-exit" id="elderExit" aria-label="Hold to leave the big button screen"><span data-icon="exit"></span></button>
       <p class="elder-for" id="elderFor"></p>
     </div>
 
     <div class="elder-body" id="elderHome">
       <p class="elder-from" id="elderFrom" hidden></p>
       <p class="elder-q" id="elderQ"></p>
-      <button class="speak" id="elderSpeak" hidden>Read it to me</button>
+      <button class="speak" id="elderSpeak" hidden><span data-icon="speak"></span>Read it to me</button>
       <div class="elder-act">
         <button class="reccircle" id="elderRec">
-          <span class="reccircle-dot"></span>
+          <span class="reccircle-rings" id="elderRings" aria-hidden="true"></span>
           <span class="reccircle-label">Press to talk</span>
         </button>
       </div>
@@ -148,9 +153,11 @@
     </div>
 
     <div class="elder-body" id="elderRecording" hidden>
+      <div class="rec-disc">
+        <canvas id="recWave" width="264" height="264" aria-hidden="true"></canvas>
+      </div>
       <p class="rec-time" id="recTime">0:00</p>
       <p class="rec-state" id="recState">Recording</p>
-      <canvas id="recWave" width="640" height="150" aria-hidden="true"></canvas>
       <p class="rec-q" id="recQ"></p>
       <div class="rec-btns">
         <button class="bigbtn ghost" id="recPause">Pause</button>
@@ -160,7 +167,7 @@
     </div>
 
     <div class="elder-body" id="elderDone" hidden>
-      <p class="done-mark" aria-hidden="true"></p>
+      <div class="done-mark" id="doneMark" aria-hidden="true"></div>
       <p class="elder-q elder-q-sm" id="doneLine">Kept.</p>
       <p class="done-sub" id="doneSub"></p>
       <button class="btn big" id="doneOk">Finish</button>
@@ -192,6 +199,7 @@
 </div>
 
 <div id="toast" hidden></div>
+<input type="file" id="importFile" accept=".zip,application/zip" hidden>
 
 <script src="js/content.js"></script>
 <script src="js/store.js"></script>
