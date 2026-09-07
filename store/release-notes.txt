@@ -1,5 +1,5 @@
-One question a week, and now the disc that draws it. The voice cuts a ring as you talk, one turn a minute, and the archive shows a ring for every story kept.
+One question a week, and now a disc that draws it. The voice cuts a ring as you talk, one turn a minute, and the archive shows a ring for every story kept.
 
-An export can be brought back in too: a new phone, or a copy from a sibling, restores every story with its tags and dates.
+An export can be brought back in: a new phone, or a sibling's copy, restores every story with its tags and dates.
 
-Fixes: the words on the big button read properly, a long question no longer crowds what sits under it, the weekly reminder keeps its hour when the clocks change, and search now finds threads.
+Fixes: the big button's label reads properly, a long question no longer crowds the screen, the reminder holds its hour when the clocks change, search finds threads, and the big screen says what went wrong.

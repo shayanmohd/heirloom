@@ -577,6 +577,14 @@ const App = (() => {
       $('#elderRec').hidden = false;
       $('#elderSkip').hidden = false;
     }
+    /* No button means no hole: the rings they have already earned stand in its place. */
+    const idle = $('#elderRec').hidden;
+    $('#elderRest').hidden = !idle;
+    if (idle) {
+      const n = Store.storiesOf(t.id).length;
+      $('#elderRest').innerHTML = ringsSvg(Math.min(n, 9),
+        { size: 224, max: 9, sw: 1.5, fade: true, ghost: true, seed: 1 });
+    }
     $('#elderQ').classList.toggle('long', ($('#elderQ').textContent || '').length > 118);
     const sp = $('#elderSpeak');
     sp.hidden = !(TTS && Store.settings().speak && !rest && c && !c.empty);
@@ -608,6 +616,16 @@ const App = (() => {
   }
 
   /* ------------------------------------------------------- recording --- */
+  /* One card carries three different failures, so it says which one it is. Telling somebody
+     the microphone did not start when what happened is that they pressed Done too early is
+     the kind of thing that stops an eighty year old trying again. */
+  function elderError(line, msg) {
+    elder.stage = 'err'; finishing = false;
+    $('#errLine').textContent = line;
+    $('#errMsg').textContent = msg;
+    renderElder();
+  }
+
   function startRecording() {
     if (!elder || elder.stage === 'rec' || Recorder.getState() !== 'idle') return;
     const t = Store.teller(elder.tellerId);
@@ -628,9 +646,7 @@ const App = (() => {
       loopWave();
       recTimer = setInterval(() => { $('#recTime').textContent = Store.dur(Recorder.elapsed()); }, 250);
     }).catch(err => {
-      elder.stage = 'err';
-      $('#errMsg').textContent = err.message;
-      renderElder();
+      elderError('The microphone did not start.', err.message);
     });
   }
 
@@ -741,9 +757,8 @@ const App = (() => {
     Recorder.stop().then(out => {
       $('#recDone').disabled = false; $('#recPause').disabled = false;
       if (!out || !out.blob || out.blob.size < 500 || out.dur < 1) {
-        elder.stage = 'err'; finishing = false;
-        $('#errMsg').textContent = 'That recording was too short to keep. Press the button, then talk for a little while before pressing Done.';
-        renderElder();
+        elderError('That was too short to keep.',
+          'Press the button, then talk for a little while before pressing Done.');
         return;
       }
       const t = Store.teller(elder.tellerId);
@@ -764,10 +779,9 @@ const App = (() => {
         reschedule();
       });
     }).catch(() => {
-      elder.stage = 'err'; finishing = false;
       $('#recDone').disabled = false; $('#recPause').disabled = false;
-      $('#errMsg').textContent = 'The recording could not be saved on this device.';
-      renderElder();
+      elderError('It could not be saved.',
+        'There was no room on this phone to keep the recording, so nothing was kept. Try again once there is space.');
     });
   }
 

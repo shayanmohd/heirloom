@@ -359,9 +359,11 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .elder-for { margin: 0; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase;
              color: var(--ink-3); font-weight: 700; line-height: 1.3; text-wrap: balance;
              overflow-wrap: anywhere; }
+/* Quiet, because an elder must not reach for it, but never invisible: this is the only way
+   out of the big button screen, so it clears 3:1 on the paper like any other control. */
 .elder-exit { position: absolute; left: 8px; top: calc(8px + var(--sat, 0px)); width: 44px; height: 44px;
               background: none; border: 0; cursor: pointer; display: flex; align-items: center;
-              justify-content: center; color: #C4B392; transition: color .3s linear; }
+              justify-content: center; color: #96805A; transition: color .3s linear; }
 .elder-exit .ic { width: 22px; height: 22px; }
 .elder-exit.holding { color: var(--accent); }
 .elder-exit.holding .ic rect { fill: var(--accent); transition: fill .9s linear; }
@@ -410,6 +412,12 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 .reccircle-label { position: relative; z-index: 1; font-size: 21px; font-weight: 700; letter-spacing: 0.01em;
                    text-shadow: 0 1px 2px rgba(40, 20, 0, .45); }
 @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.035); } }
+/* A week that is already answered takes the big button away, and what is left has to be
+   worth looking at: a ring for every story they have told so far, turning slowly. */
+.elder-rest { color: var(--gold); }
+.elder-rest .rings { display: block; width: 224px; height: 224px; max-width: 64vw; max-height: 64vw;
+                     animation: turn 150s linear infinite;
+                     filter: drop-shadow(0 8px 14px rgba(var(--shadow), .14)); }
 .elder-react { color: var(--ink-2); font-size: 17px; margin: 6px 0 0; min-height: 1.4em; text-wrap: pretty; }
 .elder-react b { color: var(--accent); }
 

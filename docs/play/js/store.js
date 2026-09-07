@@ -37,7 +37,12 @@ const Store = (() => {
       };
     } catch (e) { return JSON.parse(JSON.stringify(DEFAULTS)); }
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} }
+  /** True when the record reached the disk. Callers that would otherwise show something as
+      kept check it; everything else is a change the person can simply make again. */
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(db)); return true; }
+    catch (e) { return false; }
+  }
   const all = () => db;
   const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 
@@ -263,6 +268,9 @@ const Store = (() => {
       plays: 0, reactions: []
     };
     const keep = () => {
+      const was = t ? { used: t.used.slice(), current: t.current, startedAt: t.startedAt,
+                        answeredAt: t.answeredAt, skippedAt: t.skippedAt } : null;
+      const queue = db.queue;
       db.stories.push(s);
       if (t) {
         if (o.promptId && t.used.indexOf(o.promptId) < 0) t.used.push(o.promptId);
@@ -272,10 +280,16 @@ const Store = (() => {
         t.answeredAt = Date.now();
         t.skippedAt = null;
       }
-      save();
-      return s;
+      if (save()) return s;
+      /* The phone refused the write. A story the record does not hold is not kept, so put
+         everything back and say so, rather than show the word Kept over nothing. */
+      db.stories.pop();
+      db.queue = queue;
+      if (t) Object.assign(t, was);
+      dropAudio(s.id);
+      throw new Error('nostore');
     };
-    return blob ? putAudio(s.id, blob).then(keep) : Promise.resolve(keep());
+    return blob ? putAudio(s.id, blob).then(keep) : Promise.resolve().then(keep);
   }
   function updateStory(id, patch) {
     const s = story(id); if (!s) return null;
@@ -430,14 +444,25 @@ const Store = (() => {
     if (mime.indexOf('wav') >= 0) return 'wav';
     return 'bin';
   }
-  const slug = s => (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'story';
+  /** A file name safe piece of a sentence, cut back to a whole word rather than mid syllable. */
+  function slug(s, n) {
+    n = n || 40;
+    const t = (s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (t.length <= n) return t;
+    const cut = t.slice(0, n), back = cut.lastIndexOf('-');
+    return (back > n / 2 ? cut.slice(0, back) : cut).replace(/-$/, '');
+  }
+  /** who said it, then what it was about, then the id. Both halves are cut separately so a
+      long name cannot push the subject out of the file name altogether. */
+  const audioName = (t, s) => [slug(t ? t.name : '', 22), slug(s.label || s.question, 30) || 'story']
+    .filter(Boolean).join('-');
 
   function manifest(list) {
     return {
       archive: 'Heirloom',
       family: db.family,
       exported: new Date().toISOString(),
-      note: 'Audio files are named in the stories list below. Nothing here was uploaded anywhere; this file was written on the device that made the recordings.',
+      note: 'Audio files are named in the stories list below. A story whose file is null had no recording left on the phone when this was written. Nothing here was uploaded anywhere; this file was written on the device that made the recordings.',
       tellers: db.tellers.map(t => ({
         id: t.id, name: t.name, relation: t.relation, born: t.birthYear, place: t.place,
         packs: t.packs, ritual: t.ritual,
@@ -448,7 +473,7 @@ const Store = (() => {
         const t = teller(s.tellerId);
         return {
           id: s.id, tellerId: s.tellerId, promptId: s.promptId, label: s.label,
-          file: 'audio/' + slug((t ? t.name : '') + '-' + (s.label || s.question)) + '-' + s.id + '.' + extFor(s.mime),
+          file: 'audio/' + audioName(t, s) + '-' + s.id + '.' + extFor(s.mime),
           teller: t ? t.name : '', question: s.question, title: s.title || s.label || null,
           recorded: new Date(s.at).toISOString(), seconds: Math.round(s.dur), mime: s.mime,
           visibility: s.visibility, sealedUntil: s.sealUntil,
@@ -473,6 +498,9 @@ const Store = (() => {
       return b.arrayBuffer().then(ab => { audio.push({ name: m.stories[i].file, data: new Uint8Array(ab), i: i }); });
     })), Promise.resolve()).then(() => {
       const have = new Set(audio.map(a => a.i));
+      /* A manifest that names a file the zip does not hold sends somebody looking for it.
+         The story stays, with its question and its tags; only the promise of a file goes. */
+      m.stories.forEach((x, i) => { if (!have.has(i)) x.file = null; });
       const n = audio.length;
       const readme =
         'HEIRLOOM ARCHIVE\n\n' +
@@ -498,7 +526,7 @@ const Store = (() => {
     const t = teller(s.tellerId);
     return getAudio(id).then(b => b && {
       blob: b,
-      name: slug((t ? t.name : '') + '-' + (s.label || s.question)) + '.' + extFor(s.mime)
+      name: audioName(t, s) + '.' + extFor(s.mime)
     });
   }
 
