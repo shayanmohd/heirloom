@@ -16,6 +16,7 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.provider.MediaStore
+import android.provider.Settings
 import android.util.Base64
 import android.util.Log
 import android.view.View
@@ -35,6 +36,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -59,6 +61,8 @@ class MainActivity : ComponentActivity() {
     private var fileCallback: ValueCallback<Array<Uri>>? = null
     private var insetCss: String? = null
 
+    private val prefs by lazy { getSharedPreferences("heirloom-shell", Context.MODE_PRIVATE) }
+
     private val vibrator: Vibrator? by lazy {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             (getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
@@ -76,7 +80,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
-            val ok = grants.values.all { it }
+            // An empty result map means the dialog was cancelled, not granted.
+            val ok = grants.isNotEmpty() && grants.values.all { it }
             pendingWebPermission?.let { req ->
                 if (ok) req.grant(req.resources) else req.deny()
                 pendingWebPermission = null
@@ -156,6 +161,11 @@ class MainActivity : ComponentActivity() {
                     ContextCompat.checkSelfPermission(this@MainActivity, it) != PackageManager.PERMISSION_GRANTED
                 }
                 if (missing.isEmpty()) { request.grant(request.resources); return }
+                // Remembering that we have asked once is what lets us tell a first refusal,
+                // where the dialog comes back, from a permanent one, where it never does.
+                if (missing.contains(Manifest.permission.RECORD_AUDIO)) {
+                    prefs.edit().putBoolean("askedMic", true).apply()
+                }
                 pendingWebPermission = request
                 permissionLauncher.launch(missing.toTypedArray())
             }
@@ -259,6 +269,32 @@ class MainActivity : ComponentActivity() {
                 amps[i + 1] = if (i % 2 == 0) amp else 0
             }
             v.vibrate(VibrationEffect.createWaveform(timings, amps, -1))
+        }
+
+        /**
+         * True when Android will no longer show the microphone dialog: refused twice, so
+         * asking again does nothing and the page must offer the settings page instead.
+         */
+        @JavascriptInterface
+        fun micBlocked(): Boolean {
+            val p = Manifest.permission.RECORD_AUDIO
+            if (ContextCompat.checkSelfPermission(this@MainActivity, p) == PackageManager.PERMISSION_GRANTED) {
+                return false
+            }
+            return prefs.getBoolean("askedMic", false) &&
+                !ActivityCompat.shouldShowRequestPermissionRationale(this@MainActivity, p)
+        }
+
+        /** Opens this app's own settings page, the only route back from a blocked permission. */
+        @JavascriptInterface
+        fun openAppSettings() {
+            val i = Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", packageName, null)
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            // The catch belongs inside the posted block: startActivity runs later, on the UI
+            // thread, where a throw would take the app down instead of being returned.
+            runOnUiThread { try { startActivity(i) } catch (e: Exception) { Log.e(TAG, "app settings failed", e) } }
         }
 
         @JavascriptInterface fun hasAmplitudeControl(): Boolean = vibrator?.hasAmplitudeControl() == true

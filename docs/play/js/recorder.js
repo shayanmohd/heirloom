@@ -60,7 +60,15 @@ const Recorder = (() => {
       startedAt = Date.now(); pausedTotal = 0; pausedAt = 0; state = 'recording';
       capTimer = setInterval(() => { if (elapsed() * 1000 >= MAX_MS && onCap) onCap(); }, 1000);
       return true;
-    }).catch(err => { cleanup(); throw new Error(reason(err)); });
+    }).catch(err => {
+      cleanup();
+      const out = new Error(reason(err));
+      /* The card only offers the settings page for a refusal, never for a missing
+         or busy microphone, which that page cannot fix. */
+      const n = err && err.name;
+      out.refused = n === 'NotAllowedError' || n === 'SecurityError';
+      throw out;
+    });
   }
 
   function pause() {

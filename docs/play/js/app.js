@@ -553,7 +553,10 @@ const App = (() => {
     if (elder.stage === 'consent') { elderPanel('elderConsent'); return; }
     if (elder.stage === 'rec') { elderPanel('elderRecording'); return; }
     if (elder.stage === 'done') { elderPanel('elderDone'); return; }
-    if (elder.stage === 'err') { elderPanel('elderErr'); return; }
+    if (elder.stage === 'err') {
+      $('#errSettings').hidden = !(elder.errRefused && micBlocked());
+      elderPanel('elderErr'); return;
+    }
 
     elderPanel('elderHome');
     const rest = resting(t);
@@ -616,11 +619,19 @@ const App = (() => {
   }
 
   /* ------------------------------------------------------- recording --- */
+  /* Android stops showing the microphone dialog after a second refusal, so from then on
+     Try again can never succeed. When that has happened the card offers the one route left:
+     this app's own settings page, where the switch still is. */
+  function micBlocked() {
+    try { return !!(window.Native && Native.micBlocked && Native.micBlocked()); } catch (e) { return false; }
+  }
+
   /* One card carries three different failures, so it says which one it is. Telling somebody
      the microphone did not start when what happened is that they pressed Done too early is
      the kind of thing that stops an eighty year old trying again. */
-  function elderError(line, msg) {
+  function elderError(line, msg, refused) {
     elder.stage = 'err'; finishing = false;
+    elder.errRefused = !!refused;
     $('#errLine').textContent = line;
     $('#errMsg').textContent = msg;
     renderElder();
@@ -646,7 +657,7 @@ const App = (() => {
       loopWave();
       recTimer = setInterval(() => { $('#recTime').textContent = Store.dur(Recorder.elapsed()); }, 250);
     }).catch(err => {
-      elderError('The microphone did not start.', err.message);
+      elderError('The microphone did not start.', err.message, err && err.refused);
     });
   }
 
@@ -1546,6 +1557,9 @@ const App = (() => {
         body: 'What has been recorded so far is thrown away and the recording starts from the beginning.' });
     });
     $('#doneOk').addEventListener('click', () => { elder.stage = 'home'; renderElder(); });
+    $('#errSettings').addEventListener('click', () => {
+      try { Native.openAppSettings(); } catch (e) {}
+    });
     $('#errRetry').addEventListener('click', startRecording);
     $('#errBack').addEventListener('click', () => { elder.stage = 'home'; renderElder(); });
 
@@ -1606,6 +1620,9 @@ const App = (() => {
   function onResume() {
     reschedule();
     if (!elder && Store.onboarded()) render();
+    // Coming back from the settings page: if the microphone was allowed there, the card
+    // stops offering settings and Try again is worth pressing again.
+    else if (elder && elder.stage === 'err') renderElder();
   }
 
   function boot() {

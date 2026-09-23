@@ -1,5 +1,7 @@
-One question a week, and now a disc that draws it. The voice cuts a ring as you talk, one turn a minute, and the archive shows a ring for every story kept.
+Recording works.
 
-An export can be brought back in: a new phone, or a sibling's copy, restores every story with its tags and dates.
+In the last version the big button could never open the microphone, on any phone, so pressing it always ended in an error screen. That is fixed. Press the button, talk, press Done, and the story is kept with the ring the voice drew.
 
-Fixes: the big button's label reads properly, a long question no longer crowds the screen, the reminder holds its hour when the clocks change, search finds threads, and the big screen says what went wrong.
+If the microphone was refused twice, Android stops asking, and the error screen now has a button that opens this app's settings page where it can be allowed again.
+
+Every story already on this phone is exactly where you left it.
